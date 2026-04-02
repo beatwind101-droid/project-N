@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package toolkit.plugin;
+
+option go_package = "github.com/yourorg/toolkit/pkg/plugin/proto";
+
+service ToolService {
+  rpc GetMetadata(MetadataRequest) returns (MetadataResponse);
+  rpc Initialize(InitRequest) returns (InitResponse);
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+  rpc Validate(ValidateRequest) returns (ValidateResponse);
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+}
+
+message MetadataRequest {}
+
+message MetadataResponse {
+  string name = 1;
+  string version = 2;
+  string description = 3;
+  string author = 4;
+  repeated string tags = 5;
+  string category = 6;
+}
+
+message InitRequest {
+  map<string, string> config = 1;
+}
+
+message InitResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message ExecuteRequest {
+  map<string, string> params = 1;
+}
+
+message ExecuteResponse {
+  bool success = 1;
+  string data = 2;
+  string error = 3;
+}
+
+message ValidateRequest {
+  map<string, string> params = 1;
+}
+
+message ValidateResponse {
+  bool valid = 1;
+  string error = 2;
+}
+
+message ShutdownRequest {}
+
+message ShutdownResponse {
+  bool success = 1;
+  string error = 2;
+}

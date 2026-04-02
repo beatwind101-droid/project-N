@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工具集 - 插件集成平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif; background: #1e1e2e; color: #cdd6f4; height: 100vh; overflow: hidden; }
+        .app { display: flex; height: 100vh; overflow: hidden; }
+
+        /* 侧边栏 */
+        .sidebar { width: 300px; background: #181825; border-right: 1px solid #313244; display: flex; flex-direction: column; min-width: 300px; }
+        .sidebar-header { padding: 16px; border-bottom: 1px solid #313244; }
+        .sidebar-header h2 { font-size: 14px; color: #89b4fa; display: flex; align-items: center; gap: 8px; }
+        .plugin-count { background: #313244; padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #a6adc8; }
+        .plugin-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .plugin-item { padding: 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: all 0.15s; background: #1e1e2e; }
+        .plugin-item:hover { background: #313244; }
+        .plugin-item.active { background: #45475a; border-left: 3px solid #89b4fa; }
+        .plugin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .plugin-name { font-weight: 600; font-size: 14px; }
+        .plugin-version { font-size: 10px; background: #313244; padding: 2px 6px; border-radius: 4px; color: #89b4fa; }
+        .plugin-desc { font-size: 12px; color: #6c7086; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .plugin-tags { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+        .tag { background: #313244; padding: 2px 6px; border-radius: 8px; font-size: 10px; color: #a6adc8; }
+
+        /* 主内容区 */
+        .main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+        /* 工具栏 */
+        .toolbar { padding: 12px 16px; background: #181825; border-bottom: 1px solid #313244; display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
+        .toolbar h1 { font-size: 16px; color: #cdd6f4; flex: 1; min-width: 200px; }
+
+        /* 按钮 */
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; font-family: inherit; }
+        .btn-primary { background: #89b4fa; color: #1e1e2e; }
+        .btn-primary:hover { background: #74c7ec; }
+        .btn-secondary { background: #45475a; color: #cdd6f4; }
+        .btn-secondary:hover { background: #585b70; }
+        .btn-success { background: #a6e3a1; color: #1e1e2e; }
+        .btn-success:hover { background: #94e2d5; }
+        .btn-danger { background: #f38ba8; color: #1e1e2e; }
+        .btn-danger:hover { background: #eba0ac; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* 内容区域 */
+        .content { flex: 1; padding: 20px; overflow-y: auto; background: #1e1e2e; min-height: 0; }
+
+        /* 插件信息卡片 */
+        .plugin-card { background: #181825; border-radius: 12px; padding: 24px; border: 1px solid #313244; margin-bottom: 20px; }
+        .plugin-card h3 { font-size: 20px; color: #89b4fa; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .plugin-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .meta-item { background: #313244; padding: 8px 12px; border-radius: 8px; }
+        .meta-label { font-size: 11px; color: #6c7086; margin-bottom: 4px; }
+        .meta-value { font-size: 13px; color: #cdd6f4; font-weight: 500; }
+        .plugin-description { color: #a6adc8; font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+        .plugin-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+        .tag { background: #313244; padding: 4px 10px; border-radius: 12px; font-size: 11px; color: #89b4fa; }
+
+        /* 参数表单 */
+        .param-form { background: #181825; border-radius: 12px; padding: 20px; border: 1px solid #313244; margin-bottom: 20px; }
+        .param-form h4 { font-size: 14px; color: #cba6f7; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; color: #a6adc8; margin-bottom: 6px; font-weight: 500; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; background: #313244; border: 1px solid #45475a; border-radius: 8px; color: #cdd6f4; font-size: 13px; font-family: inherit; transition: border-color 0.15s; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: #89b4fa; }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        /* 输出区 */
+        .output-section { background: #181825; border-radius: 12px; border: 1px solid #313244; overflow: hidden; }
+        .output-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #313244; background: #1e1e2e; }
+        .output-header h4 { font-size: 14px; color: #a6e3a1; display: flex; align-items: center; gap: 8px; }
+        .output { padding: 16px; font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 13px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; background: #11111b; min-height: 200px; max-height: 400px; }
+        .output.success { border-left: 3px solid #a6e3a1; }
+        .output.error { border-left: 3px solid #f38ba8; }
+
+        /* 状态栏 */
+        .status-bar { padding: 10px 16px; background: #181825; border-top: 1px solid #313244; display: flex; justify-content: space-between; font-size: 12px; color: #6c7086; flex-shrink: 0; }
+        .status-indicator { display: flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #a6e3a1; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* 空状态 */
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #6c7086; padding: 40px; }
+        .empty-state svg { width: 80px; height: 80px; margin-bottom: 20px; opacity: 0.3; }
+        .empty-state p { font-size: 14px; text-align: center; }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #45475a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #585b70; }
+
+        /* 加载动画 */
+        .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #313244; border-top-color: #89b4fa; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 模态框 */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal { background: #1e1e2e; border-radius: 16px; width: 560px; max-width: 90vw; max-height: 85vh; overflow-y: auto; border: 1px solid #313244; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .modal-header { padding: 20px 24px; border-bottom: 1px solid #313244; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 18px; color: #89b4fa; }
+        .modal-close { background: none; border: none; color: #6c7086; cursor: pointer; font-size: 24px; padding: 4px; line-height: 1; transition: color 0.15s; }
+        .modal-close:hover { color: #cdd6f4; }
+        .modal-body { padding: 24px; }
+        .modal-footer { padding: 16px 24px; border-top: 1px solid #313244; display: flex; justify-content: flex-end; gap: 10px; background: #181825; border-radius: 0 0 16px 16px; }
+
+        /* 文件上传区 */
+        .file-upload { border: 2px dashed #45475a; border-radius: 12px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.15s; background: #181825; }
+        .file-upload:hover { border-color: #89b4fa; background: #1e1e2e; }
+        .file-upload.drag-over { border-color: #a6e3a1; background: #1e1e2e; }
+        .file-upload input { display: none; }
+        .file-upload-icon { font-size: 48px; margin-bottom: 12px; }
+        .file-upload-text { color: #cdd6f4; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+        .file-upload-hint { color: #6c7086; font-size: 12px; }
+
+        /* 选项卡 */
+        .tabs { display: flex; border-bottom: 1px solid #313244; margin-bottom: 20px; }
+        .tab { padding: 12px 20px; cursor: pointer; color: #6c7086; border-bottom: 2px solid transparent; transition: all 0.15s; margin-bottom: -1px; }
+        .tab:hover { color: #cdd6f4; }
+        .tab.active { color: #89b4fa; border-bottom-color: #89b4fa; }
+
+        /* 进度条 */
+        .progress { height: 6px; background: #313244; border-radius: 3px; overflow: hidden; margin-top: 12px; }
+        .progress-bar { height: 100%; background: linear-gradient(90deg, #89b4fa, #cba6f7); transition: width 0.3s; }
+
+        .hidden { display: none !important; }
+
+        /* 通知 */
+        .notification { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 8px; color: #cdd6f4; font-size: 13px; z-index: 1001; animation: slideIn 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .notification.success { background: #a6e3a1; color: #1e1e2e; }
+        .notification.error { background: #f38ba8; color: #1e1e2e; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .app { flex-direction: column; }
+            .sidebar { width: 100%; height: 200px; min-width: 100%; }
+            .toolbar { flex-wrap: wrap; }
+            .toolbar h1 { min-width: 100%; margin-bottom: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    插件列表
+                    <span class="plugin-count" id="pluginCount">0</span>
+                </h2>
+            </div>
+            <div class="plugin-list" id="pluginList">
+                <div class="empty-state">
+                    <div class="spinner"></div>
+                    <p>正在加载插件...</p>
+                </div>
+            </div>
+            <div style="padding: 12px; border-top: 1px solid #313244;">
+                <button class="btn btn-success" onclick="openImportModal()" style="width: 100%; justify-content: center;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    导入工具
+                </button>
+            </div>
+        </div>
+
+        <!-- 主内容 -->
+        <div class="main">
+            <!-- 工具栏 -->
+            <div class="toolbar">
+                <h1>🔧 工具集 - 插件集成平台</h1>
+                <button class="btn btn-secondary" onclick="refreshPlugins()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    刷新
+                </button>
+                <button class="btn btn-success" onclick="openImportModal()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    导入工具
+                </button>
+            </div>
+
+            <!-- 内容区 -->
+            <div class="content" id="content">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    <p>选择一个插件开始使用，或点击"导入工具"添加新插件</p>
+                </div>
+            </div>
+
+            <!-- 状态栏 -->
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span id="statusText">就绪</span>
+                </div>
+                <span id="timestamp"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入工具模态框 -->
+    <div class="modal-overlay hidden" id="importModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📦 导入工具</h3>
+                <button class="modal-close" onclick="closeImportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- 选项卡 -->
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('upload')" id="tabUpload">上传文件</div>
+                    <div class="tab" onclick="switchTab('manual')" id="tabManual">手动注册</div>
+                </div>
+
+                <!-- 上传文件 -->
+                <div id="uploadPanel">
+                    <div class="file-upload" id="fileUpload" onclick="document.getElementById('execFile').click()">
+                        <div class="file-upload-icon">📁</div>
+                        <div class="file-upload-text">点击或拖拽上传可执行文件</div>
+                        <div class="file-upload-hint">支持 .exe 文件，最大 100MB</div>
+                        <input type="file" id="execFile" accept=".exe,.bin,.out" onchange="handleFileSelect(this)">
+                    </div>
+                    <div id="fileInfo" class="hidden" style="margin-top: 16px; padding: 12px; background: #313244; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span id="fileName" style="font-size: 13px; color: #cdd6f4;"></span>
+                            <button class="btn btn-danger" onclick="removeFile()" style="padding: 4px 8px; font-size: 12px;">删除</button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label>工具名称 *</label>
+                        <input type="text" id="uploadName" placeholder="例如：my-tool">
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>版本</label>
+                            <input type="text" id="uploadVersion" value="1.0.0" placeholder="1.0.0">
+                        </div>
+                        <div class="form-group">
+                            <label>分类</label>
+                            <select id="uploadCategory">
+                                <option value="utility">工具</option>
+                                <option value="data">数据处理</option>
+                                <option value="network">网络</option>
+                                <option value="system">系统</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="uploadDesc" placeholder="描述这个工具的用途..." rows="3"></textarea>
+                    </div>
+                    <div class="progress hidden" id="uploadProgress">
+                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                    </div>
+                    <p id="progressText" style="font-size: 12px; color: #6c7086; margin-top: 8px;"></p>
+                </div>
+
+                <!-- 手动注册 -->
+                <div id="manualPanel" class="hidden">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>工具名称 *</label>
+                            <input type="text" id="manualName" placeholder="例如：my-tool">
+                        </div>
+                        <div class="form-group">
+                            <label>版本 *</label>
+                            <input type="text" id="manualVersion" value="1.0.0" placeholder="1.0.0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>描述 *</label>
+                        <textarea id="manualDesc" placeholder="描述这个工具的用途..." rows="3"></textarea>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>作者</label>
+                            <input type="text" id="manualAuthor" placeholder="Your Name">
+                        </div>
+                        <div class="form-group">
+                            <label>分类</label>
+                            <select id="manualCategory">
+                                <option value="utility">工具</option>
+                                <option value="data">数据处理</option>
+                                <option value="network">网络</option>
+                                <option value="system">系统</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>标签（逗号分隔）</label>
+                        <input type="text" id="manualTags" placeholder="custom, tool, plugin">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeImportModal()">取消</button>
+                <button class="btn btn-success" onclick="submitImport()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let plugins = [];
+        let selectedPlugin = null;
+        let currentTab = 'upload';
+        let selectedExecFile = null;
+
+        // HTML 转义函数
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // 更新时间
+        function updateTimestamp() {
+            const now = new Date();
+            document.getElementById('timestamp').textContent = now.toLocaleString('zh-CN');
+        }
+        setInterval(updateTimestamp, 1000);
+        updateTimestamp();
+
+        // 更新状态
+        function updateStatus(text) {
+            document.getElementById('statusText').textContent = text;
+        }
+
+        // 加载插件
+        async function loadPlugins() {
+            try {
+                const resp = await fetch('http://localhost:8082/api/plugins', {
+                    headers: { 'X-API-Key': 'your-secret-api-key' }
+                });
+                plugins = await resp.json();
+                renderPluginList();
+                document.getElementById('pluginCount').textContent = plugins.length;
+                updateStatus(`已加载 ${plugins.length} 个插件`);
+            } catch (e) {
+                updateStatus('加载失败：' + e.message);
+                showNotification('加载插件失败：' + e.message, 'error');
+            }
+        }
+
+        // 渲染插件列表
+        function renderPluginList() {
+            const list = document.getElementById('pluginList');
+            if (plugins.length === 0) {
+                list.innerHTML = '<div class="empty-state" style="padding: 20px;"><p>暂无插件</p></div>';
+                return;
+            }
+
+            list.innerHTML = plugins.map((p, i) => `
+                <div class="plugin-item ${selectedPlugin === i ? 'active' : ''}" onclick="selectPlugin(${i})">
+                    <div class="plugin-header">
+                        <span class="plugin-name">${escapeHtml(p.name)}</span>
+                        <span class="plugin-version">v${escapeHtml(p.version)}</span>
+                    </div>
+                    <div class="plugin-desc">${escapeHtml(p.description || '暂无描述')}</div>
+                    ${p.tags && p.tags.length > 0 ? `
+                        <div class="plugin-tags">
+                            ${p.tags.slice(0, 3).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // 选择插件
+        function selectPlugin(index) {
+            selectedPlugin = index;
+            renderPluginList();
+            renderPluginDetail(index);
+        }
+
+        // 渲染插件详情
+        function renderPluginDetail(index) {
+            const plugin = plugins[index];
+            const content = document.getElementById('content');
+            
+            // 根据插件名称生成操作类型选项
+            let actionOptions = '';
+            if (plugin.name === 'scraper' || plugin.name === 'scraper-plugin') {
+                actionOptions = `
+                    <option value="fetch">fetch - 基础请求</option>
+                    <option value="parse">parse - CSS 解析</option>
+                    <option value="xpath">xpath - XPath 解析</option>
+                    <option value="adaptive_parse">adaptive_parse - 自适应解析</option>
+                    <option value="links">links - 提取链接</option>
+                    <option value="text">text - 提取文本</option>
+                    <option value="crawl">crawl - 批量爬取（支持暂停/恢复）</option>
+                    <option value="crawl_status">crawl_status - 查看爬取状态</option>
+                    <option value="crawl_pause">crawl_pause - 暂停爬取</option>
+                    <option value="crawl_resume">crawl_resume - 恢复爬取</option>
+                    <option value="sitemap">sitemap - 站点地图</option>
+                    <option value="batch">batch - 批量执行</option>
+                    <option value="export">export - 结果导出</option>
+                `;
+            } else if (plugin.name === 'file-manager') {
+                actionOptions = `
+                    <option value="list">list - 列出文件</option>
+                    <option value="exists">exists - 检查文件存在</option>
+                    <option value="info">info - 获取文件信息</option>
+                `;
+            } else {
+                actionOptions = `<option value="">请选择操作</option>`;
+            }
+            
+            content.innerHTML = `
+                <div class="plugin-card">
+                    <h3>🔌 ${escapeHtml(plugin.name)}</h3>
+                    <div class="plugin-meta">
+                        <div class="meta-item">
+                            <div class="meta-label">版本</div>
+                            <div class="meta-value">v${escapeHtml(plugin.version)}</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">作者</div>
+                            <div class="meta-value">${escapeHtml(plugin.author || '未知')}</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">分类</div>
+                            <div class="meta-value">${escapeHtml(plugin.category || '未分类')}</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">状态</div>
+                            <div class="meta-value">${plugin.enabled ? '✅ 已启用' : '❌ 已禁用'}</div>
+                        </div>
+                    </div>
+                    <div class="plugin-description">${escapeHtml(plugin.description || '暂无描述')}</div>
+                    ${plugin.tags && plugin.tags.length > 0 ? `
+                        <div class="plugin-tags">
+                            ${plugin.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    <div style="margin-top: 16px; display: flex; gap: 8px;">
+                        <button class="btn btn-danger" onclick="deletePlugin('${escapeHtml(plugin.name)}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            删除插件
+                        </button>
+                    </div>
+                </div>
+
+                <div class="param-form">
+                    <h4>⚙️ 执行参数</h4>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>操作类型</label>
+                            <select id="actionSelect" onchange="updateFormFields()">
+                                ${actionOptions}
+                            </select>
+                        </div>
+                        <div class="form-group" id="pathGroup">
+                            <label>路径</label>
+                            <input type="text" id="pathInput" placeholder="./example.txt">
+                        </div>
+                    </div>
+                    <div class="form-group" id="urlGroup">
+                        <label>URL</label>
+                        <input type="text" id="urlInput" placeholder="https://example.com">
+                    </div>
+                    <div class="form-group" id="selectorGroup">
+                        <label>CSS 选择器</label>
+                        <input type="text" id="selectorInput" placeholder=".class 或 #id">
+                    </div>
+                    <div class="form-group hidden" id="xpathGroup">
+                        <label>XPath 表达式</label>
+                        <input type="text" id="xpathInput" placeholder="//div[@class='content']">
+                    </div>
+                    <div class="form-group hidden" id="jobIdGroup">
+                        <label>任务 ID</label>
+                        <input type="text" id="jobIdInput" placeholder="输入爬取任务ID">
+                    </div>
+                    <div class="form-group hidden" id="depthGroup">
+                        <label>爬取深度</label>
+                        <input type="number" id="depthInput" value="2" min="1" max="5">
+                    </div>
+                    <div class="form-group hidden" id="urlsGroup">
+                        <label>URL 列表（每行一个）</label>
+                        <textarea id="urlsInput" rows="5" placeholder="https://example1.com&#10;https://example2.com&#10;https://example3.com"></textarea>
+                    </div>
+                    <div class="form-group hidden" id="tasksGroup">
+                        <label>任务列表（JSON 数组）</label>
+                        <textarea id="tasksInput" rows="8" placeholder='[&#10;  { "action": "fetch", "url": "https://example.com" },&#10;  { "action": "parse", "url": "https://example.com", "selector": ".title" }&#10;]'></textarea>
+                    </div>
+                    <div class="form-group hidden" id="limitGroup">
+                        <label>并发限制</label>
+                        <input type="number" id="limitInput" value="5" min="1" max="50">
+                    </div>
+                    <div class="form-group hidden" id="formatGroup">
+                        <label>导出格式</label>
+                        <select id="formatSelect">
+                            <option value="json">JSON</option>
+                            <option value="csv">CSV</option>
+                            <option value="txt">TXT</option>
+                        </select>
+                    </div>
+                    <div class="form-group hidden" id="dataGroup">
+                        <label>导出数据（JSON 对象）</label>
+                        <textarea id="dataInput" rows="6" placeholder='{&#10;  "results": [&#10;    { "url": "https://example.com", "status": "success" }&#10;  ]&#10;}'></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="executePlugin()" style="margin-top: 12px;">
+                        ▶️ 执行
+                    </button>
+                </div>
+
+                <div class="output-section">
+                    <div class="output-header">
+                        <h4>📊 执行结果</h4>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-secondary" onclick="downloadOutput()" style="padding: 4px 12px; font-size: 12px;">下载</button>
+                            <button class="btn btn-secondary" onclick="copyOutput()" style="padding: 4px 12px; font-size: 12px;">复制</button>
+                        </div>
+                    </div>
+                    <div class="output" id="output">// 执行结果将显示在这里...</div>
+                </div>
+            `;
+            
+            // 初始更新表单字段
+            updateFormFields();
+        }
+
+        // 更新表单字段
+        function updateFormFields() {
+            try {
+                const action = document.getElementById('actionSelect').value;
+                const urlGroup = document.getElementById('urlGroup');
+                const selectorGroup = document.getElementById('selectorGroup');
+                const xpathGroup = document.getElementById('xpathGroup');
+                const urlsGroup = document.getElementById('urlsGroup');
+                const tasksGroup = document.getElementById('tasksGroup');
+                const limitGroup = document.getElementById('limitGroup');
+                const formatGroup = document.getElementById('formatGroup');
+                const dataGroup = document.getElementById('dataGroup');
+                const pathGroup = document.getElementById('pathGroup');
+                const jobIdGroup = document.getElementById('jobIdGroup');
+                const depthGroup = document.getElementById('depthGroup');
+
+                // 隐藏所有可选字段
+                urlGroup.classList.add('hidden');
+                selectorGroup.classList.add('hidden');
+                xpathGroup.classList.add('hidden');
+                urlsGroup.classList.add('hidden');
+                tasksGroup.classList.add('hidden');
+                limitGroup.classList.add('hidden');
+                formatGroup.classList.add('hidden');
+                dataGroup.classList.add('hidden');
+                pathGroup.classList.add('hidden');
+                jobIdGroup.classList.add('hidden');
+                depthGroup.classList.add('hidden');
+
+                // 根据操作类型显示相应字段
+                switch (action) {
+                    case 'fetch':
+                    case 'links':
+                    case 'text':
+                        urlGroup.classList.remove('hidden');
+                        break;
+                    case 'parse':
+                    case 'adaptive_parse':
+                        urlGroup.classList.remove('hidden');
+                        selectorGroup.classList.remove('hidden');
+                        break;
+                    case 'xpath':
+                        urlGroup.classList.remove('hidden');
+                        xpathGroup.classList.remove('hidden');
+                        break;
+                    case 'sitemap':
+                        urlGroup.classList.remove('hidden');
+                        depthGroup.classList.remove('hidden');
+                        break;
+                    case 'crawl':
+                        urlsGroup.classList.remove('hidden');
+                        limitGroup.classList.remove('hidden');
+                        break;
+                    case 'crawl_status':
+                    case 'crawl_pause':
+                    case 'crawl_resume':
+                        jobIdGroup.classList.remove('hidden');
+                        break;
+                    case 'batch':
+                        tasksGroup.classList.remove('hidden');
+                        limitGroup.classList.remove('hidden');
+                        break;
+                    case 'export':
+                        formatGroup.classList.remove('hidden');
+                        dataGroup.classList.remove('hidden');
+                        break;
+                    case 'list':
+                    case 'exists':
+                    case 'info':
+                        pathGroup.classList.remove('hidden');
+                        break;
+                }
+            } catch (e) {
+                showNotification('更新表单字段错误：' + e.message, 'error');
+                console.error('Error in updateFormFields:', e);
+            }
+        }
+
+        // 执行插件
+        async function executePlugin() {
+            const action = document.getElementById('actionSelect').value;
+            const params = { action };
+
+            try {
+                switch (action) {
+                    case 'fetch':
+                    case 'links':
+                    case 'text':
+                        const url = document.getElementById('urlInput').value;
+                        if (!url) {
+                            showNotification('请输入 URL', 'error');
+                            return;
+                        }
+                        params.url = url;
+                        break;
+                    case 'parse':
+                    case 'adaptive_parse':
+                        const parseUrl = document.getElementById('urlInput').value;
+                        if (!parseUrl) {
+                            showNotification('请输入 URL', 'error');
+                            return;
+                        }
+                        params.url = parseUrl;
+                        const selector = document.getElementById('selectorInput').value;
+                        if (selector) {
+                            params.selector = selector;
+                        }
+                        break;
+                    case 'xpath':
+                        const xpathUrl = document.getElementById('urlInput').value;
+                        if (!xpathUrl) {
+                            showNotification('请输入 URL', 'error');
+                            return;
+                        }
+                        params.url = xpathUrl;
+                        const xpath = document.getElementById('xpathInput').value;
+                        if (!xpath) {
+                            showNotification('请输入 XPath 表达式', 'error');
+                            return;
+                        }
+                        params.xpath = xpath;
+                        break;
+                    case 'sitemap':
+                        const sitemapUrl = document.getElementById('urlInput').value;
+                        if (!sitemapUrl) {
+                            showNotification('请输入 URL', 'error');
+                            return;
+                        }
+                        params.url = sitemapUrl;
+                        params.depth = parseInt(document.getElementById('depthInput').value) || 2;
+                        break;
+                    case 'crawl':
+                        const urlsText = document.getElementById('urlsInput').value;
+                        if (!urlsText.trim()) {
+                            showNotification('请输入 URL 列表', 'error');
+                            return;
+                        }
+                        params.urls = urlsText.split('\n').filter(u => u.trim()).map(u => u.trim());
+                        params.limit = parseInt(document.getElementById('limitInput').value) || 5;
+                        break;
+                    case 'crawl_status':
+                    case 'crawl_pause':
+                    case 'crawl_resume':
+                        const jobId = document.getElementById('jobIdInput').value;
+                        if (!jobId) {
+                            showNotification('请输入任务 ID', 'error');
+                            return;
+                        }
+                        params.job_id = jobId;
+                        break;
+                    case 'batch':
+                        const tasksText = document.getElementById('tasksInput').value;
+                        if (!tasksText.trim()) {
+                            showNotification('请输入任务列表', 'error');
+                            return;
+                        }
+                        try {
+                            params.tasks = JSON.parse(tasksText);
+                        } catch (e) {
+                            showNotification('任务列表 JSON 格式错误：' + e.message, 'error');
+                            return;
+                        }
+                        params.limit = parseInt(document.getElementById('limitInput').value) || 5;
+                        break;
+                    case 'export':
+                        const dataText = document.getElementById('dataInput').value;
+                        if (!dataText.trim()) {
+                            showNotification('请输入导出数据', 'error');
+                            return;
+                        }
+                        try {
+                            params.data = JSON.parse(dataText);
+                        } catch (e) {
+                            showNotification('导出数据 JSON 格式错误：' + e.message, 'error');
+                            return;
+                        }
+                        params.format = document.getElementById('formatSelect').value || 'json';
+                        break;
+                    case 'list':
+                    case 'exists':
+                    case 'info':
+                        const path = document.getElementById('pathInput').value;
+                        if (!path) {
+                            showNotification('请输入路径', 'error');
+                            return;
+                        }
+                        params.path = path;
+                        break;
+                }
+            } catch (e) {
+                showNotification('参数构建错误：' + e.message, 'error');
+                return;
+            }
+
+            const output = document.getElementById('output');
+            output.textContent = '执行中...';
+            output.className = 'output';
+
+            try {
+                const resp = await fetch('http://localhost:8082/api/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'your-secret-api-key'
+                    },
+                    body: JSON.stringify({
+                        plugin: plugins[selectedPlugin].name,
+                        params
+                    })
+                });
+
+                const result = await resp.json();
+                output.textContent = JSON.stringify(result, null, 2);
+                output.className = `output ${result.success ? 'success' : 'error'}`;
+                updateStatus(result.success ? '执行成功' : '执行失败');
+            } catch (e) {
+                output.textContent = '请求失败：' + e.message;
+                output.className = 'output error';
+                updateStatus('请求失败');
+            }
+        }
+
+        // 删除插件
+        async function deletePlugin(pluginName) {
+            if (!confirm(`确定要删除插件 ${pluginName} 吗？此操作不可撤销。`)) {
+                return;
+            }
+
+            try {
+                updateStatus('删除插件中...');
+                const resp = await fetch('http://localhost:8082/api/remove', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': 'your-secret-api-key'
+                    },
+                    body: JSON.stringify({ name: pluginName })
+                });
+
+                const result = await resp.json();
+                if (result.success) {
+                    showNotification('插件删除成功', 'success');
+                    // 重新加载插件列表
+                    await loadPlugins();
+                    // 重置选择
+                    selectedPlugin = -1;
+                    document.getElementById('content').innerHTML = `
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                            <p>选择一个插件开始使用，或点击"导入工具"添加新插件</p>
+                        </div>
+                    `;
+                } else {
+                    showNotification('删除失败：' + (result.error || '未知错误'), 'error');
+                }
+                updateStatus('就绪');
+            } catch (e) {
+                showNotification('删除错误：' + e.message, 'error');
+                updateStatus('就绪');
+            }
+        }
+
+        // 复制输出
+        function copyOutput() {
+            const output = document.getElementById('output');
+            navigator.clipboard.writeText(output.textContent).then(() => {
+                showNotification('已复制到剪贴板');
+            });
+        }
+
+        // 下载输出
+        function downloadOutput() {
+            const output = document.getElementById('output');
+            const action = document.getElementById('actionSelect').value;
+            let filename = 'scraper-result';
+            let content = output.textContent;
+
+            try {
+                const result = JSON.parse(content);
+                if (action === 'export' && result.data && result.data.output) {
+                    content = result.data.output;
+                    filename = `export.${result.data.format || 'json'}`;
+                } else {
+                    filename = `scraper-${action}-${Date.now()}.json`;
+                }
+            } catch (e) {
+                filename = `scraper-${action}-${Date.now()}.txt`;
+            }
+
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showNotification('已下载文件：' + filename);
+        }
+
+        // 刷新插件
+        function refreshPlugins() {
+            loadPlugins();
+            showNotification('已刷新插件列表');
+        }
+
+        // 模态框相关
+        function openImportModal() {
+            document.getElementById('importModal').classList.remove('hidden');
+        }
+
+        function closeImportModal() {
+            document.getElementById('importModal').classList.add('hidden');
+            resetForm();
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tabUpload').classList.toggle('active', tab === 'upload');
+            document.getElementById('tabManual').classList.toggle('active', tab === 'manual');
+            document.getElementById('uploadPanel').classList.toggle('hidden', tab === 'manual');
+            document.getElementById('manualPanel').classList.toggle('hidden', tab === 'upload');
+        }
+
+        function resetForm() {
+            try {
+                const elements = [
+                    'uploadName', 'uploadVersion', 'uploadDesc',
+                    'manualName', 'manualVersion', 'manualDesc', 'manualAuthor', 'manualTags',
+                    'execFile', 'fileInfo', 'uploadProgress', 'progressBar', 'progressText'
+                ];
+                
+                elements.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                            element.value = '';
+                        } else if (id === 'uploadVersion' || id === 'manualVersion') {
+                            element.value = '1.0.0';
+                        } else if (element.classList) {
+                            if (id === 'fileInfo' || id === 'uploadProgress') {
+                                element.classList.add('hidden');
+                            }
+                        } else if (id === 'progressBar') {
+                            element.style.width = '0%';
+                        } else if (id === 'progressText') {
+                            element.textContent = '';
+                        }
+                    }
+                });
+                
+                selectedExecFile = null;
+            } catch (e) {
+                showNotification('重置表单错误：' + e.message, 'error');
+                console.error('Error in resetForm:', e);
+            }
+        }
+
+        // 文件上传
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                selectedExecFile = input.files[0];
+                document.getElementById('fileName').textContent = selectedExecFile.name + ' (' + formatSize(selectedExecFile.size) + ')';
+                document.getElementById('fileInfo').classList.remove('hidden');
+
+                const name = selectedExecFile.name.replace(/\.exe$/i, '').replace(/\s+/g, '-').toLowerCase();
+                document.getElementById('uploadName').value = name;
+            }
+        }
+
+        function removeFile() {
+            selectedExecFile = null;
+            document.getElementById('execFile').value = '';
+            document.getElementById('fileInfo').classList.add('hidden');
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // 提交导入
+        async function submitImport() {
+            if (currentTab === 'upload') {
+                await submitUpload();
+            } else {
+                await submitManual();
+            }
+        }
+
+        async function submitUpload() {
+            try {
+                const name = document.getElementById('uploadName').value.trim();
+                const version = document.getElementById('uploadVersion').value.trim();
+                const description = document.getElementById('uploadDesc').value.trim();
+                if (!name) {
+                    showNotification('请输入工具名称', 'error');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('version', version);
+                formData.append('description', description);
+                if (selectedExecFile) {
+                    formData.append('executable', selectedExecFile);
+                }
+
+                document.getElementById('uploadProgress').classList.remove('hidden');
+                const progressBar = document.getElementById('progressBar');
+                const progressText = document.getElementById('progressText');
+
+                try {
+                    progressBar.style.width = '50%';
+                    progressText.textContent = '上传中...';
+
+                    const resp = await fetch('http://localhost:8082/api/import', {
+                        method: 'POST',
+                        headers: { 'X-API-Key': 'your-secret-api-key' },
+                        body: formData
+                    });
+
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '导入完成';
+
+                    const result = await resp.json();
+                    if (result.success) {
+                        showNotification(result.message);
+                        // 手动添加新插件到前端列表
+                        const author = 'Unknown';
+                        const category = document.getElementById('uploadCategory').value;
+                        const tags = ['custom'];
+                        const newPlugin = {
+                            name: name,
+                            version: version,
+                            description: description,
+                            author: author,
+                            category: category,
+                            tags: tags,
+                            enabled: true
+                        };
+                        plugins.push(newPlugin);
+                        renderPluginList();
+                        document.getElementById('pluginCount').textContent = plugins.length;
+                        closeImportModal();
+                    } else {
+                        showNotification('导入失败：' + result.error, 'error');
+                    }
+                } catch (e) {
+                    showNotification('请求失败：' + e.message, 'error');
+                } finally {
+                    setTimeout(() => {
+                        document.getElementById('uploadProgress').classList.add('hidden');
+                        progressBar.style.width = '0%';
+                    }, 1000);
+                }
+            } catch (e) {
+                showNotification('错误：' + e.message, 'error');
+                console.error('Error in submitUpload:', e);
+            }
+        }
+
+        async function submitManual() {
+            try {
+                const name = document.getElementById('manualName').value.trim();
+                const version = document.getElementById('manualVersion').value.trim();
+                const description = document.getElementById('manualDesc').value.trim();
+
+                if (!name || !version || !description) {
+                    showNotification('请填写必填项', 'error');
+                    return;
+                }
+
+                const tags = document.getElementById('manualTags').value
+                    .split(',')
+                    .map(t => t.trim())
+                    .filter(t => t);
+
+                try {
+                    const resp = await fetch('http://localhost:8082/api/import', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-API-Key': 'your-secret-api-key'
+                        },
+                        body: JSON.stringify({
+                            name,
+                            version,
+                            description,
+                            author: document.getElementById('manualAuthor').value || 'Unknown',
+                            category: document.getElementById('manualCategory').value,
+                            tags: tags.length > 0 ? tags : ['custom'],
+                            enabled: true
+                        })
+                    });
+
+                    const result = await resp.json();
+                    if (result.success) {
+                        showNotification(result.message);
+                        // 手动添加新插件到前端列表
+                        const newPlugin = {
+                            name: name,
+                            version: version,
+                            description: description,
+                            author: document.getElementById('manualAuthor').value || 'Unknown',
+                            category: document.getElementById('manualCategory').value,
+                            tags: tags.length > 0 ? tags : ['custom'],
+                            enabled: true
+                        };
+                        plugins.push(newPlugin);
+                        renderPluginList();
+                        document.getElementById('pluginCount').textContent = plugins.length;
+                        closeImportModal();
+                    } else {
+                        showNotification('导入失败：' + result.error, 'error');
+                    }
+                } catch (e) {
+                    showNotification('请求失败：' + e.message, 'error');
+                }
+            } catch (e) {
+                showNotification('错误：' + e.message, 'error');
+                console.error('Error in submitManual:', e);
+            }
+        }
+
+        // 拖拽上传
+        const fileUpload = document.getElementById('fileUpload');
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.classList.add('drag-over');
+        });
+        fileUpload.addEventListener('dragleave', () => {
+            fileUpload.classList.remove('drag-over');
+        });
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.classList.remove('drag-over');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                const input = document.getElementById('execFile');
+                input.files = e.dataTransfer.files;
+                handleFileSelect(input);
+            }
+        });
+
+        // 初始化
+        loadPlugins();
+    </script>
+</body>
+</html>

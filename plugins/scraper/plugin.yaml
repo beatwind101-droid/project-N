@@ -1,0 +1,14 @@
+name: scraper
+version: "2.0.0"
+description: "自适应网页爬虫 - 基于 Scrapling 设计，支持智能元素定位、反检测绕过、代理轮换"
+author: "Toolkit Team"
+category: 数据采集
+tags:
+  - 爬虫
+  - 网页
+  - 数据采集
+  - HTTP
+  - 自适应
+executable: scraper.exe
+plugin_type: exe
+enabled: true

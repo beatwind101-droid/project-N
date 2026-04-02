@@ -1,0 +1,18 @@
+plugin_dirs:
+    - ./plugins
+    - ~/.toolkit/plugins
+plugins:
+    file-manager:
+        enabled: true
+        config:
+            base_path: .
+    scraper:
+        enabled: true
+        config:
+            concurrent_limit: 10
+logging:
+    level: info
+    format: text
+general:
+    auto_discover: true
+    hot_reload: false

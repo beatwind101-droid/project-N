@@ -1,0 +1,49 @@
+# 可执行文件
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 临时文件
+*.tmp
+*.temp
+*~
+
+# 日志文件
+*.log
+
+# 配置文件
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE 配置
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 构建输出
+build/
+dist/
+out/
+
+# protobuf 生成文件（除了手动维护的 plugin.pb.go）
+*.pb.go
+!pkg/plugin/proto/plugin.pb.go
+
+# 依赖目录
+vendor/
+node_modules/
+
+# 测试报告
+coverage/
+
+# OS 生成的文件
+Thumbs.db
+.DS_Store
+
+# Windows 系统文件
+nul
