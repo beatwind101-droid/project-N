@@ -29,11 +29,60 @@ import (
 )
 
 // 日志记录
-var (
-	infoLogger  = log.New(log.Writer(), "[INFO] ", log.Ldate|log.Ltime)
-	errorLogger = log.New(log.Writer(), "[ERROR] ", log.Ldate|log.Ltime)
-	debugLogger = log.New(log.Writer(), "[DEBUG] ", log.Ldate|log.Ltime)
-)
+type Logger struct {
+	info  *log.Logger
+	error *log.Logger
+	debug *log.Logger
+	level string
+}
+
+var logger = &Logger{
+	info:  log.New(log.Writer(), "[INFO] ", log.Ldate|log.Ltime),
+	error: log.New(log.Writer(), "[ERROR] ", log.Ldate|log.Ltime),
+	debug: log.New(log.Writer(), "[DEBUG] ", log.Ldate|log.Ltime),
+	level: getLogLevel(),
+}
+
+// getLogLevel 从环境变量获取日志级别
+func getLogLevel() string {
+	level := os.Getenv("LOG_LEVEL")
+	if level == "" {
+		return "info"
+	}
+	return level
+}
+
+// Info 记录信息日志
+func (l *Logger) Info(format string, v ...interface{}) {
+	if l.level == "debug" || l.level == "info" {
+		l.info.Printf(filterSensitiveInfo(format), v...)
+	}
+}
+
+// Error 记录错误日志
+func (l *Logger) Error(format string, v ...interface{}) {
+	if l.level != "silent" {
+		l.error.Printf(filterSensitiveInfo(format), v...)
+	}
+}
+
+// Debug 记录调试日志
+func (l *Logger) Debug(format string, v ...interface{}) {
+	if l.level == "debug" {
+		l.debug.Printf(filterSensitiveInfo(format), v...)
+	}
+}
+
+// filterSensitiveInfo 过滤敏感信息
+func filterSensitiveInfo(msg string) string {
+	// 过滤 API 密钥
+	msg = regexp.MustCompile(`api[_-]?key[\s:=]+[\w-]+`).ReplaceAllString(msg, "api_key=***")
+	// 过滤密码
+	msg = regexp.MustCompile(`password[\s:=]+[\w-]+`).ReplaceAllString(msg, "password=***")
+	// 过滤令牌
+	msg = regexp.MustCompile(`token[\s:=]+[\w-]+`).ReplaceAllString(msg, "token=***")
+	return msg
+}
 
 // validateURL 验证 URL 是否安全，防止 SSRF 攻击
 func validateURL(urlStr string) error {

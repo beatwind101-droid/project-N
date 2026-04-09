@@ -1,15 +1,16 @@
-# Toolkit 项目
+# Toolkit 核心项目
 
-一个功能强大的工具包，支持插件化架构，包含网页爬虫、文件管理等功能。
+Toolkit 是一个功能强大的插件化工具平台，支持动态加载和管理各种插件，提供统一的 API 接口和 GUI 界面。
 
 ## 项目结构
 
 ```
-├── cmd/                  # 命令行工具源码
+├── cmd/                  # 命令行工具和 GUI
 │   ├── gui/              # GUI 界面
 │   ├── plugin-sdk/       # 插件 SDK
 │   └── toolkit/          # 工具包主程序
 ├── docs/                 # 文档
+│   ├── api-standard.md   # API 接口标准
 │   └── tool-development-standard.md  # 工具开发标准
 ├── pkg/                  # 核心包
 │   ├── config/           # 配置管理
@@ -19,8 +20,7 @@
 │   ├── mcp/              # 消息控制协议
 │   ├── plugin/           # 插件系统
 │   └── util/             # 工具函数
-├── plugins/              # 插件目录
-│   └── scraper/          # 网页爬虫插件
+├── plugins/              # 插件目录（单独管理）
 ├── .gitignore            # Git 忽略文件
 ├── go.mod                # Go 模块文件
 ├── go.sum                # 依赖校验文件
@@ -28,20 +28,96 @@
 └── README.md             # 项目说明
 ```
 
-## 功能特性
+## 开发语言
 
-- **插件化架构**：支持动态加载和管理插件
-- **网页爬虫**：支持批量爬取、站点地图生成、XPath 解析等功能
-- **文件管理**：支持文件操作和管理
-- **GUI 界面**：提供直观的用户界面
-- **RESTful API**：支持通过 API 调用工具功能
+- **主要语言**：Go 语言
+- **GUI 前端**：HTML/CSS/JavaScript
+- **API**：RESTful HTTP API
+- **插件通信**：gRPC
 
-## 安装步骤
+## 核心功能
+
+### 1. 插件管理
+- 动态发现和加载插件
+- 插件生命周期管理
+- 插件配置管理
+- 插件依赖管理
+
+### 2. 任务执行
+- 异步任务执行
+- 任务状态监控
+- 任务结果处理
+
+### 3. API 服务
+- RESTful API 接口
+- 插件执行接口
+- 系统状态接口
+
+### 4. GUI 界面
+- 插件管理界面
+- 任务执行界面
+- 结果展示界面
+
+### 5. 安全机制
+- 插件权限控制
+- 输入验证
+- 安全的插件加载
+
+## 接口说明
+
+### 1. 插件接口
+
+插件需要实现 `tkplugin.Tool` 接口：
+
+```go
+type Tool interface {
+    Metadata() ToolMetadata
+    Init(ctx context.Context, config map[string]interface{}) error
+    Execute(ctx context.Context, params map[string]interface{}) (*Result, error)
+}
+```
+
+### 2. API 接口
+
+#### 执行插件
+- **URL**: `/api/execute`
+- **方法**: `POST`
+- **请求体**:
+  ```json
+  {
+    "plugin": "scraper",
+    "action": "fetch",
+    "params": {
+      "url": "https://example.com"
+    }
+  }
+  ```
+
+#### 列出插件
+- **URL**: `/api/plugins`
+- **方法**: `GET`
+
+### 3. 配置接口
+
+#### 工具配置 (`tools.yaml`)
+```yaml
+plugin_dirs:
+    - ./plugins
+plugins:
+    scraper:
+        enabled: true
+        config:
+            concurrent_limit: 10
+```
+
+## 安装和使用
+
+### 安装
 
 1. **克隆项目**
    ```bash
    git clone <repository-url>
-   cd <project-directory>
+   cd toolkit-core
    ```
 
 2. **安装依赖**
@@ -59,187 +135,59 @@
    
    # 构建插件 SDK
    go build -o plugin-sdk.exe ./cmd/plugin-sdk
-   
-   # 构建爬虫插件
-   cd plugins/scraper
-   go build -o scraper.exe main.go
-   cd ../..
    ```
 
-4. **配置插件**
-   编辑 `tools.yaml` 文件，配置插件路径和参数：
-   ```yaml
-   plugin_dirs:
-       - ./plugins
-   plugins:
-       scraper:
-           enabled: true
-           config:
-               concurrent_limit: 10
+### 使用
+
+1. **启动服务**
+   ```bash
+   ./toolkit-gui.exe
    ```
 
-## 使用方法
+2. **访问 GUI**
+   在浏览器中访问 `http://localhost:8082`
 
-### 启动 GUI
-
-```bash
-./toolkit-gui.exe
-```
-
-然后在浏览器中访问 `http://localhost:8082`。
-
-### 使用命令行
-
-```bash
-./toolkit.exe [command] [options]
-```
-
-### 使用 API
-
-```bash
-# 执行爬虫任务
-curl -X POST http://localhost:8082/api/execute \
-  -H "Content-Type: application/json" \
-  -d '{"plugin": "scraper", "action": "fetch", "params": {"url": "https://example.com"}}'
-```
+3. **使用 API**
+   ```bash
+   curl -X POST http://localhost:8082/api/execute \
+     -H "Content-Type: application/json" \
+     -d '{"plugin": "scraper", "action": "fetch", "params": {"url": "https://example.com"}}'
+   ```
 
 ## 插件开发
 
-### 创建插件
+### 1. 创建插件
 
 1. 在 `plugins` 目录下创建新的插件目录
 2. 创建 `main.go` 文件，实现 `tkplugin.Tool` 接口
 3. 创建 `plugin.yaml` 文件，配置插件信息
 4. 构建插件：`go build -o <plugin-name>.exe main.go`
 
-### 插件接口
-
-插件需要实现以下接口：
-
-```go
-type Tool interface {
-    Metadata() ToolMetadata
-    Init(ctx context.Context, config map[string]interface{}) error
-    Execute(ctx context.Context, params map[string]interface{}) (*Result, error)
-}
-```
-
-## 配置说明
-
-### tools.yaml
+### 2. 插件配置
 
 ```yaml
-plugin_dirs:              # 插件目录列表
-    - ./plugins
-plugins:                  # 插件配置
-    scraper:              # 插件名称
-        enabled: true     # 是否启用
-        config:           # 插件配置
-            concurrent_limit: 10  # 并发限制
-logging:
-    level: info           # 日志级别
-    format: text          # 日志格式
-general:
-    auto_discover: true   # 自动发现插件
-    hot_reload: false     # 热重载
+name: scraper
+version: "2.0.0"
+description: "网页爬虫插件"
+author: "Toolkit Team"
+category: 数据采集
+tags:
+  - 爬虫
+  - 网页
+  - 数据采集
+executable: scraper.exe
+plugin_type: exe
+enabled: true
 ```
 
-## 接口标准
+### 3. 插件 API
 
-### API 接口
-
-#### 执行插件
-
-- **URL**: `/api/execute`
-- **方法**: `POST`
-- **内容类型**: `application/json`
-- **请求体**:
-  ```json
-  {
-    "plugin": "scraper",
-    "action": "fetch",
-    "params": {
-      "url": "https://example.com"
-    }
-  }
-  ```
-- **响应**:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "url": "https://example.com",
-      "status_code": 200,
-      "body": "<html>...</html>"
-    },
-    "error": "",
-    "metrics": {
-      "response_size": 1234
-    }
-  }
-  ```
-
-#### 列出插件
-
-- **URL**: `/api/plugins`
-- **方法**: `GET`
-- **响应**:
-  ```json
-  {
-    "plugins": [
-      {
-        "name": "scraper",
-        "version": "2.0.0",
-        "description": "网页爬虫插件"
-      }
-    ]
-  }
-  ```
-
-## 爬虫插件功能
-
-### 支持的操作
-
-| 操作 | 功能描述 | 参数 |
-|------|----------|------|
-| `fetch` | 基础 HTTP 请求 | `url` (必需), `method` (可选) |
-| `parse` | CSS 选择器解析 | `url` (必需), `selector` (必需) |
-| `xpath` | XPath 表达式解析 | `url` (必需), `xpath` (必需) |
-| `links` | 提取页面链接 | `url` (必需) |
-| `text` | 提取页面文本 | `url` (必需) |
-| `crawl` | 批量爬取 | `urls` (必需), `type` (可选), `limit` (可选) |
-| `sitemap` | 生成站点地图 | `url` (必需) |
-| `adaptive_parse` | 自适应解析 | `url` (必需), `target` (必需) |
-| `batch` | 批量执行 | `tasks` (必需) |
-| `export` | 结果导出 | `data` (必需), `format` (可选) |
-
-## 示例
-
-### 基础请求
-
-```json
-{
-  "plugin": "scraper",
-  "action": "fetch",
-  "params": {
-    "url": "https://example.com"
-  }
-}
-```
-
-### 批量爬取
-
-```json
-{
-  "plugin": "scraper",
-  "action": "crawl",
-  "params": {
-    "urls": ["https://example.com", "https://google.com"],
-    "type": "text",
-    "limit": 5
-  }
-}
-```
+插件通过 gRPC 与核心系统通信，实现以下方法：
+- `GetMetadata`：获取插件元数据
+- `Initialize`：初始化插件
+- `Execute`：执行插件操作
+- `Validate`：验证参数
+- `Shutdown`：关闭插件
 
 ## 开发指南
 
@@ -247,6 +195,7 @@ general:
 2. **提交规范**：使用语义化提交消息
 3. **测试**：为新功能编写单元测试
 4. **文档**：更新相关文档
+5. **安全性**：遵循安全最佳实践
 
 ## 许可证
 

@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
+
+	"github.com/yourorg/toolkit/pkg/common"
 
 	"github.com/hashicorp/go-hclog"
 )
@@ -39,7 +42,10 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 // handleMCP handles JSON-RPC over HTTP POST
 func (h *Handler) handleMCP(w http.ResponseWriter, r *http.Request) {
 	// CORS headers
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	origin := r.Header.Get("Origin")
+	if origin != "" && common.IsValidOrigin(origin) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id")
 
@@ -86,7 +92,10 @@ func (h *Handler) handleSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	origin := r.Header.Get("Origin")
+	if origin != "" && common.IsValidOrigin(origin) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
 
 	// Send server info
 	serverInfo := map[string]interface{}{
@@ -196,7 +205,10 @@ func (h *Handler) handleSSEWithBody(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	origin := r.Header.Get("Origin")
+	if origin != "" && common.IsValidOrigin(origin) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
 
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {

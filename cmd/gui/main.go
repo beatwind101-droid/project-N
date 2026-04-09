@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,11 +11,15 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"golang.org/x/time/rate"
 
+	"github.com/yourorg/toolkit/pkg/common"
 	"github.com/yourorg/toolkit/pkg/config"
 	"github.com/yourorg/toolkit/pkg/core"
 )
@@ -23,6 +29,7 @@ type Server struct {
 	logger    hclog.Logger
 	staticDir string
 	apiKeys   map[string]bool
+	limiter   *rate.Limiter
 }
 
 func main() {
@@ -64,15 +71,55 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 初始化 API 密钥 - 生产环境中应从配置文件或环境变量加载
+	// 初始化 API 密钥 - 从环境变量加载
 	apiKeys := make(map[string]bool)
-	apiKeys["your-secret-api-key"] = true
+	apiKey := os.Getenv("API_KEY")
+	if apiKey == "" {
+		// 检查是否为生产环境
+		isProduction := os.Getenv("TOOLKIT_ENV") == "production" || os.Getenv("APP_ENV") == "production"
+		if isProduction {
+			logger.Error("API_KEY environment variable is required in production")
+			os.Exit(1)
+		}
+		// 开发环境生成随机API密钥
+		randomBytes := make([]byte, 16)
+		if err := rand.Read(randomBytes); err != nil {
+			logger.Error("failed to generate random API key", "error", err)
+			os.Exit(1)
+		}
+		randomKey := "dev-" + hex.EncodeToString(randomBytes)
+		logger.Warn("API_KEY environment variable not set, using random key for development only")
+		apiKey = randomKey
+	} else {
+		logger.Info("API key loaded from environment variable")
+	}
+	apiKeys[apiKey] = true
+
+	// 初始化速率限制器 - 从环境变量读取配置
+	rateLimit := 10 // 默认10次请求/秒
+	burstLimit := 20 // 默认最多允许20个请求排队
+	
+	if rateStr := os.Getenv("RATE_LIMIT"); rateStr != "" {
+		if rate, err := strconv.Atoi(rateStr); err == nil && rate > 0 {
+			rateLimit = rate
+		}
+	}
+	
+	if burstStr := os.Getenv("BURST_LIMIT"); burstStr != "" {
+		if burst, err := strconv.Atoi(burstStr); err == nil && burst > 0 {
+			burstLimit = burst
+		}
+	}
+	
+	limiter := rate.NewLimiter(rate.Limit(rateLimit), burstLimit)
+	logger.Info("Rate limiter initialized", "rate", rateLimit, "burst", burstLimit)
 
 	server := &Server{
 		manager:   manager,
 		logger:    logger,
 		staticDir: staticDir,
 		apiKeys:   apiKeys,
+		limiter:   limiter,
 	}
 
 	mux := http.NewServeMux()
@@ -80,7 +127,7 @@ func main() {
 
 	httpServer := &http.Server{
 		Addr:    ":8082",
-		Handler: securityHeaders(mux),
+		Handler: securityHeaders(server.rateLimit(mux)),
 	}
 
 	go func() {
@@ -314,7 +361,10 @@ func (a *AuthMiddleware) Check(next http.HandlerFunc) http.HandlerFunc {
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// CORS 头信息
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		if origin != "" && common.IsValidOrigin(origin) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -331,6 +381,22 @@ func securityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		// 特性策略
 		w.Header().Set("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// rateLimit 速率限制中间件
+func (s *Server) rateLimit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.limiter.Allow() {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Too many requests, please try again later",
+			})
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
 }

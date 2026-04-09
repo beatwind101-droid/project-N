@@ -19,10 +19,9 @@ type ToolkitConfig struct {
 
 // PluginConfig 保存每个插件的配置
 type PluginConfig struct {
-	Enabled    bool                   `yaml:"enabled"`
-	Path       string                 `yaml:"path,omitempty"`
-	RemoteAddr string                 `yaml:"remote_addr,omitempty"`
-	Config     map[string]interface{} `yaml:"config,omitempty"`
+	Enabled bool                   `yaml:"enabled"`
+	Path    string                 `yaml:"path,omitempty"`
+	Config  map[string]interface{} `yaml:"config,omitempty"`
 }
 
 // LogConfig 保存日志配置
